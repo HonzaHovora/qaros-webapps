@@ -147,3 +147,10 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# qaros-webapps build output and keys
+/out/
+*.qarapp
+__pycache__/
+*.pem
+*.key
