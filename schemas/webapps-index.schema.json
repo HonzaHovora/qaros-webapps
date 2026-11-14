@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Quaternar/qaros-webapps/blob/main/schemas/webapps-index.schema.json",
+  "title": "QAROS web app adaptations index",
+  "description": "webapps-index.json, published with every qaros-webapps release at https://github.com/Quaternar/qaros-webapps/releases/latest/download/webapps-index.json. A reader refuses an indexFormatVersion it does not know. The signature covers SHA-256(\"QAROS-WEBAPPS-INDEX-SIGNATURE-V1\" NUL canonical JSON of the index without \"signature\"), canonical meaning sorted keys, no whitespace, UTF-8.",
+  "type": "object",
+  "required": ["indexFormatVersion", "repository", "release", "adaptations"],
+  "properties": {
+    "indexFormatVersion": {
+      "description": "Layout of this file. Changes that old readers cannot ignore bump it.",
+      "const": 1
+    },
+    "repository": {
+      "description": "GitHub repository the release belongs to.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "release": {
+      "description": "Tag of the release this index was published with.",
+      "$ref": "#/$defs/releaseTag"
+    },
+    "adaptations": {
+      "description": "One entry per adaptation, sorted by id.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/adaptation" }
+    },
+    "signature": {
+      "description": "Signature of the index by the QAROS release key. Present in every published release.",
+      "$ref": "#/$defs/signature"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "releaseTag": {
+      "type": "string",
+      "pattern": "^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]+$"
+    },
+    "version": {
+      "description": "Semantic version major.minor.patch with an optional -prerelease.",
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-.+)?$"
+    },
+    "adaptation": {
+      "type": "object",
+      "required": ["id", "version", "asset", "url", "release", "sha256", "size", "formatVersion", "minQarosVersion", "signed"],
+      "properties": {
+        "id": {
+          "description": "Adaptation Id from its profile.json (reverse DNS).",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+        },
+        "name": {
+          "description": "Adaptation Name (its folder in the repository).",
+          "type": "string"
+        },
+        "displayName": {
+          "description": "Name shown to users.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Adaptation Version from its profile.json.",
+          "$ref": "#/$defs/version"
+        },
+        "asset": {
+          "description": "File name of the package in the release: <id>-<version>.qarapp.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+\\.qarapp$"
+        },
+        "url": {
+          "description": "Download address of the package.",
+          "type": "string",
+          "format": "uri"
+        },
+        "release": {
+          "description": "Tag of the release holding the package.",
+          "$ref": "#/$defs/releaseTag"
+        },
+        "sha256": {
+          "description": "Lower-case hex SHA-256 of the package file.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "size": {
+          "description": "Size of the package file in bytes.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "formatVersion": {
+          "description": "formatVersion of the package's package.json.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "minQarosVersion": {
+          "description": "Oldest QAROS version that installs this adaptation.",
+          "$ref": "#/$defs/version"
+        },
+        "signed": {
+          "description": "Whether the package's profile.json carries a signature.",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "signature": {
+      "type": "object",
+      "required": ["signer", "keyId", "publicKey", "algorithm", "value"],
+      "properties": {
+        "signer": {
+          "description": "Name the key signs under (Quaternar).",
+          "type": "string"
+        },
+        "keyId": {
+          "description": "Lower-case hex SHA-256 of the DER SubjectPublicKeyInfo.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "publicKey": {
+          "description": "Base64 DER SubjectPublicKeyInfo (ECDSA P-256).",
+          "type": "string"
+        },
+        "algorithm": {
+          "const": "ECDSA-P256-SHA256"
+        },
+        "value": {
+          "description": "Base64 DER ECDSA signature.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
