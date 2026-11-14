@@ -1,0 +1,7 @@
+# Package hashes cover the exact bytes: check out every text file with LF on every platform.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.webp binary
+*.glb binary
+*.wasm binary

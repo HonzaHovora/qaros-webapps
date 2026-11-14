@@ -1,0 +1,53 @@
+name: CI
+
+# Pull requests: tests, shared library copies, version bumps against the previous release, and the
+# unsigned packages and index built and verified. Nothing is signed or published here.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with tags, for the version check)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Tooling tests
+        run: python3 -I -m unittest discover -s scripts/tests
+
+      - name: Shared library tests
+        run: node --test shared/render-frame-core.test.mjs shared/threejs/threejs-capture.test.mjs
+
+      - name: Shared library copies in step
+        run: python3 -I scripts/sync_shared.py --check
+
+      - name: Version bumps
+        run: python3 -I scripts/check_versions.py
+
+      - name: Build and verify packages (unsigned)
+        run: python3 -I scripts/build_packages.py --out out
+
+      - name: Index (unsigned)
+        run: |
+          today=$(date -u +%Y.%m.%d)
+          last=$(git tag --list "$today.*" | sed "s/^$today\.//" | grep -E '^[0-9]+$' | sort -n | tail -n 1 || true)
+          tag="$today.$(( ${last:-0} + 1 ))"
+          python3 -I scripts/make_index.py build --packages out --release "$tag" --out out/webapps-index.json
+          python3 -I scripts/make_index.py verify out/webapps-index.json --packages out
+
+      - name: Upload unsigned packages
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned-packages
+          path: |
+            out/*.qarapp
+            out/webapps-index.json
+          retention-days: 7
+          if-no-files-found: error

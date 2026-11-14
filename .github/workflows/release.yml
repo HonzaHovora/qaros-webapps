@@ -1,0 +1,160 @@
+name: Release
+
+# Every merge to main: check versions, build a .qarapp per adaptation, verify, and publish a release
+# tagged YYYY.MM.DD.N. A push that changes no adaptation publishes nothing (run the workflow by hand
+# with "force" to publish anyway).
+#
+# Signing is optional. With the Key Vault variables below set, each package and the index are
+# signed with the QAROS release key in Azure Key Vault (the key never leaves the vault) and verified
+# against its public half. With none of them set, the release is published unsigned (packages and
+# index). Setting only some of them fails the run.
+#
+# Signing configuration (environment "release-signing", variables, no secrets: azure/login uses OIDC):
+#   AZURE_CLIENT_ID           app registration / managed identity with a federated credential for
+#                             repo:Quaternar/qaros-webapps:environment:release-signing
+#   AZURE_TENANT_ID           its tenant
+#   AZURE_SUBSCRIPTION_ID     optional
+#   QAROS_RELEASE_KEY_VAULT   Key Vault holding the release key (the identity needs keys/sign,
+#                             e.g. the "Key Vault Crypto User" role on the key)
+#   QAROS_RELEASE_KEY_NAME    key name, default qaros-release
+#   QAROS_RELEASE_PUBLIC_KEY  the key's public half (PEM text), the key QAROS pins
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Publish a release even when no adaptation changed
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: release-signing
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      KEY_VAULT: ${{ vars.QAROS_RELEASE_KEY_VAULT }}
+      KEY_NAME: ${{ vars.QAROS_RELEASE_KEY_NAME || 'qaros-release' }}
+    steps:
+      - name: Checkout (with tags)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Tooling tests
+        run: python3 -I -m unittest discover -s scripts/tests
+
+      - name: Shared library copies in step
+        run: python3 -I scripts/sync_shared.py --check
+
+      - name: Version bumps
+        id: versions
+        run: python3 -I scripts/check_versions.py --github-output "$GITHUB_OUTPUT" | tee "$RUNNER_TEMP/versions.txt"
+
+      - name: Decide
+        id: decide
+        env:
+          CHANGED: ${{ steps.versions.outputs.changed }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [ "$CHANGED" = "true" ] || [ "$FORCE" = "true" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No adaptation changed since ${{ steps.versions.outputs.previous-tag }}: nothing to publish."
+          fi
+
+      - name: Signing configuration
+        if: steps.decide.outputs.publish == 'true'
+        id: signing
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          QAROS_RELEASE_KEY_VAULT: ${{ vars.QAROS_RELEASE_KEY_VAULT }}
+          QAROS_RELEASE_PUBLIC_KEY: ${{ vars.QAROS_RELEASE_PUBLIC_KEY }}
+        run: |
+          set_names=""
+          missing=""
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID QAROS_RELEASE_KEY_VAULT QAROS_RELEASE_PUBLIC_KEY; do
+            if [ -n "${!name}" ]; then set_names="$set_names $name"; else missing="$missing $name"; fi
+          done
+          if [ -z "$set_names" ]; then
+            echo "sign=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No release signing configured: publishing an UNSIGNED release."
+            exit 0
+          fi
+          if [ -n "$missing" ]; then
+            echo "::error::Environment release-signing sets$set_names but lacks$missing (set all of them to sign, none to publish unsigned)."
+            exit 1
+          fi
+          public_key="$RUNNER_TEMP/qaros-release.pub.pem"
+          printf '%s\n' "$QAROS_RELEASE_PUBLIC_KEY" > "$public_key"
+          python3 -I scripts/qarapp.py key-id "$public_key"
+          echo "PUBLIC_KEY=$public_key" >> "$GITHUB_ENV"
+          echo "sign=true" >> "$GITHUB_OUTPUT"
+
+      - name: Azure login (OIDC, no secret)
+        if: steps.signing.outputs.sign == 'true'
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          allow-no-subscriptions: true
+
+      - name: Release tag
+        if: steps.decide.outputs.publish == 'true'
+        id: tag
+        run: |
+          today=$(date -u +%Y.%m.%d)
+          last=$(git tag --list "$today.*" | sed "s/^$today\.//" | grep -E '^[0-9]+$' | sort -n | tail -n 1 || true)
+          echo "tag=$today.$(( ${last:-0} + 1 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Build and verify packages and index
+        if: steps.decide.outputs.publish == 'true'
+        env:
+          SIGN: ${{ steps.signing.outputs.sign }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          signing=()
+          verify=()
+          if [ "$SIGN" = "true" ]; then
+            signing=(--public-key "$PUBLIC_KEY" --key-vault "$KEY_VAULT" --key-name "$KEY_NAME")
+            verify=(--public-key "$PUBLIC_KEY" --require-signature)
+          fi
+          python3 -I scripts/build_packages.py --out out "${signing[@]}"
+          python3 -I scripts/make_index.py build --packages out --release "$TAG" --out out/webapps-index.json "${signing[@]}"
+          python3 -I scripts/make_index.py verify out/webapps-index.json --packages out "${verify[@]}"
+
+      - name: Publish the release
+        if: steps.decide.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SIGN: ${{ steps.signing.outputs.sign }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          if [ "$SIGN" = "true" ]; then
+            state="Signed with the QAROS release key."
+          else
+            state="Unsigned release (packages and index carry no signature)."
+          fi
+          {
+            echo "Web app adaptations for QAROS. $state"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/versions.txt"
+            echo '```'
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" out/*.qarapp out/webapps-index.json \
+            --target "$GITHUB_SHA" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --latest
