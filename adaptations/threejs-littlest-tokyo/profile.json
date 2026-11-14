@@ -1,0 +1,41 @@
+{
+  "AddressPattern" : "https://threejs.org/examples/webgl_animation_keyframes.html*",
+  "AppScale" : 0.20000000000000001,
+  "ContinuousRendering" : true,
+  "DisplayName" : "three.js Littlest Tokyo",
+  "Engine" : "three.js",
+  "Id" : "com.quaternar.threejs-littlest-tokyo",
+  "Name" : "threejs-littlest-tokyo",
+  "PageRegion" : 
+  {
+    "Height" : 1024,
+    "Width" : 1024
+  },
+  "Panels" : "panels",
+  "RenderScale" : 0.5,
+  "Scripts" : 
+  [
+    {
+      "File" : "scripts/capture-renderer.js",
+      "JavaScript" : "",
+      "Name" : "capture-renderer",
+      "Stage" : "preDocument"
+    },
+    {
+      "File" : "scripts/render-frame-core.js",
+      "JavaScript" : "",
+      "Name" : "render-frame-core",
+      "Stage" : "afterLoad"
+    },
+    {
+      "File" : "scripts/render-frame-handler.js",
+      "JavaScript" : "",
+      "Name" : "render-frame-handler",
+      "Stage" : "afterLoad"
+    }
+  ],
+  "ShareBrowserProfile" : true,
+  "StartAddress" : "https://threejs.org/examples/webgl_animation_keyframes.html",
+  "Version" : "0.1.0",
+  "_sv" : 3
+}

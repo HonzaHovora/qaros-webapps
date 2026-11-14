@@ -1,0 +1,17 @@
+{
+  "description": "Adaptation scripts that are copies of a shared library. scripts/sync_shared.py writes each copy from its library, replacing __PAGE_REGION_WIDTH__ and __PAGE_REGION_HEIGHT__ with the adaptation's PageRegion; --check fails when a copy differs.",
+  "copies": {
+    "foxglove/scripts/capture-renderer.js": "threejs/threejs-capture.js",
+    "foxglove/scripts/render-frame-core.js": "render-frame-core.js",
+    "foxglove/scripts/render-frame-handler.js": "threejs/threejs-render-frame.js",
+    "threejs-examples/scripts/capture-renderer.js": "threejs/threejs-capture.js",
+    "threejs-examples/scripts/render-frame-core.js": "render-frame-core.js",
+    "threejs-examples/scripts/render-frame-handler.js": "threejs/threejs-render-frame.js",
+    "threejs-littlest-tokyo/scripts/capture-renderer.js": "threejs/threejs-capture.js",
+    "threejs-littlest-tokyo/scripts/render-frame-core.js": "render-frame-core.js",
+    "threejs-littlest-tokyo/scripts/render-frame-handler.js": "threejs/threejs-render-frame.js",
+    "threejs-shinjuku/scripts/capture-renderer.js": "threejs/threejs-capture.js",
+    "threejs-shinjuku/scripts/render-frame-core.js": "render-frame-core.js",
+    "threejs-shinjuku/scripts/render-frame-handler.js": "threejs/threejs-render-frame.js"
+  }
+}
