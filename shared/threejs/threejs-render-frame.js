@@ -26,7 +26,8 @@
 // The eye cameras are children of that pose, so depth stays along each eye's own view.
 //
 // Depth: the raw post-projection depth, packed as 24-bit unsigned normalized RGB at half linear
-// resolution, two side-by-side tiles of half the view's width and a quarter of its height
+// resolution, each sample the nearest depth of its 2x2 eye texels, two side-by-side tiles of half
+// the view's width and a quarter of its height
 // (docs/cef-vulkan-browser.md "Depth", RenderStreamProtocol.cpp `BuildRenderAtlasPlan`). Native
 // code is told the projection convention per camera and reconstructs from it. A logarithmic depth
 // buffer is not linear post-projection depth and is not supported.
@@ -167,44 +168,106 @@
 			gl_Position = vec4(corner * 2.0 - 1.0, 0.0, 1.0);
 		}`;
 
+	// Depth and alpha travel at half resolution: each sample stands for a 2x2 block of eye texels,
+	// and native code nearest-upsamples it back over that block. A sample has to keep what any of
+	// its four texels holds, not one texel of them: a feature thinner than the block (a 1-px line)
+	// misses a fixed texel in most blocks, and its colour then reaches the mixer with no depth, so
+	// the warp and the mixer drop it and the line shows dashed. Depth keeps the block's nearest
+	// texel. The eye pass uses three.js's standard depth (cleared to 1, the far plane, tested
+	// LessEqual), so the nearest is the smallest. Alpha keeps the block's largest coverage.
+	// `blockDepth` and `blockAlpha` take eye texels counted from the eye's top row, and stay
+	// scalar so threejs-depth-pack.test.mjs can run them as JavaScript.
+	const blockFunctions = `
+		float blockDepth(int column, int row) {
+			float nearest = 1.0;
+			for (int dy = 0; dy < 2; ++dy) {
+				for (int dx = 0; dx < 2; ++dx) {
+					int x = min(column * 2 + dx, eyeSize.x - 1);
+					int y = min(row * 2 + dy, eyeSize.y - 1);
+					nearest = min(nearest, eyeDepth(x, y));
+				}
+			}
+			return nearest;
+		}
+		float blockAlpha(int column, int row) {
+			if (row * 2 >= eyeSize.y) return 0.0;
+			float coverage = 0.0;
+			for (int dy = 0; dy < 2; ++dy) {
+				for (int dx = 0; dx < 2; ++dx) {
+					int x = min(column * 2 + dx, eyeSize.x - 1);
+					int y = min(row * 2 + dy, eyeSize.y - 1);
+					coverage = max(coverage, eyeAlpha(x, y));
+				}
+			}
+			return coverage;
+		}`;
+
 	// One texel per destination pixel: `source` + (pixel - `destination`). Opaque: Chromium
 	// composites alpha < 1 premultiplied (atlas page) or over white (stream surface), which
 	// changes the colour bytes, so the stream never depends on the app's canvas alpha.
+	//
+	// With a depth view, an empty texel (depth at the clear value) in a block that holds geometry
+	// takes the colour of the block's nearest texel. Its packed depth and alpha are that texel's, so
+	// without this it would reach users as the clear colour at the geometry's depth and opaque: a
+	// dark fringe beside every edge. With it, colour, depth and alpha describe the same block.
 	const copyFragment = `#version 300 es
 		precision highp float;
 		uniform highp sampler2D colorTexture;
+		uniform highp sampler2D depthTexture;
 		uniform ivec2 sourceOrigin;
 		uniform ivec2 destinationOrigin;
+		uniform ivec2 eyeSize;
+		uniform int fillEmptyFromBlock;
 		out vec4 outColor;
 		void main() {
-			outColor = vec4(texelFetch(colorTexture, sourceOrigin + ivec2(gl_FragCoord.xy) - destinationOrigin, 0).rgb, 1.0);
+			ivec2 local = ivec2(gl_FragCoord.xy) - destinationOrigin;
+			vec3 color = texelFetch(colorTexture, sourceOrigin + local, 0).rgb;
+			if (fillEmptyFromBlock != 0 && texelFetch(depthTexture, sourceOrigin + local, 0).r >= 1.0) {
+				int left = local.x - local.x % 2;
+				int top = eyeSize.y - 1 - local.y;
+				top -= top % 2;
+				float nearest = 1.0;
+				for (int dy = 0; dy < 2; ++dy) {
+					for (int dx = 0; dx < 2; ++dx) {
+						ivec2 texel = sourceOrigin
+							+ ivec2(min(left + dx, eyeSize.x - 1), eyeSize.y - 1 - min(top + dy, eyeSize.y - 1));
+						float depth = texelFetch(depthTexture, texel, 0).r;
+						if (depth < nearest) {
+							nearest = depth;
+							color = texelFetch(colorTexture, texel, 0).rgb;
+						}
+					}
+				}
+			}
+			outColor = vec4(color, 1.0);
 		}`;
 
 	// Row 0 of the packed rectangle is the view's top row, the same atlas convention every colour
-	// view relies on. One depth texel per half-resolution sample, never a filtered blend.
+	// view relies on. Each half-resolution sample is the nearest depth of its 2x2 block (above),
+	// never a filtered blend.
 	const packFragment = `#version 300 es
 		precision highp float;
 		uniform highp sampler2D depthTexture;
-		uniform ivec2 depthOrigin;
-		uniform vec2 depthSize;
+		uniform ivec2 eyeOrigin;
+		uniform ivec2 eyeSize;
 		uniform ivec2 destinationOrigin;
-		uniform float halfWidth;
-		uniform float tileHeight;
+		uniform int halfWidth;
+		uniform int tileHeight;
 		out vec4 outColor;
+		float eyeDepth(int x, int y) {
+			return texelFetch(depthTexture, eyeOrigin + ivec2(x, eyeSize.y - 1 - y), 0).r;
+		}
+		float eyeAlpha(int x, int y) {
+			return 0.0;
+		}
+		${blockFunctions}
 		void main() {
-			vec2 local = floor(gl_FragCoord.xy) - vec2(destinationOrigin);
-			float halfHeight = tileHeight * 2.0;
-			float packedX = local.x;
-			float packedY = tileHeight - 1.0 - local.y;
-			float tileIndex = packedX < halfWidth ? 0.0 : 1.0;
-			float halfX = tileIndex < 0.5 ? packedX : packedX - halfWidth;
-			float halfY = tileIndex < 0.5 ? packedY : packedY + tileHeight;
-			vec2 eyeTexel = vec2(
-				clamp(floor((halfX + 0.5) * depthSize.x / halfWidth - 0.5), 0.0, depthSize.x - 1.0),
-				clamp(floor((halfY + 0.5) * depthSize.y / halfHeight - 0.5), 0.0, depthSize.y - 1.0)
-			);
-			eyeTexel.y = depthSize.y - 1.0 - eyeTexel.y;
-			float rawDepth = texelFetch(depthTexture, depthOrigin + ivec2(eyeTexel), 0).r;
+			ivec2 local = ivec2(gl_FragCoord.xy) - destinationOrigin;
+			int packedY = tileHeight - 1 - local.y;
+			bool rightTile = local.x >= halfWidth;
+			int column = rightTile ? local.x - halfWidth : local.x;
+			int row = rightTile ? packedY + tileHeight : packedY;
+			float rawDepth = blockDepth(column, row);
 			// At depth 1, float32 rounds 16777215 + 0.5 to 16777216. Saturate before
 			// splitting bytes, otherwise the far plane wraps to near-plane black.
 			float scaled = min(floor(clamp(rawDepth, 0.0, 1.0) * 16777215.0 + 0.5), 16777215.0);
@@ -217,8 +280,10 @@
 		}`;
 
 	// Alpha at half linear resolution, three consecutive half-resolution rows per atlas row (R, G,
-	// B), each sample the mean of its 2x2 eye pixels. Opaque, so CEF keeps every byte; native
-	// unpacks it into the colour view's alpha channel.
+	// B), each sample the largest coverage of its 2x2 block (above): a mean would dim a 1-px line to
+	// a quarter or a half. The colour copy fills the block's empty texels, so the larger coverage
+	// never shows the clear colour. Opaque, so CEF keeps every byte; native unpacks it into the
+	// colour view's alpha channel.
 	const alphaPackFragment = `#version 300 es
 		precision highp float;
 		uniform highp sampler2D colorTexture;
@@ -227,17 +292,15 @@
 		uniform ivec2 destinationOrigin;
 		uniform int tileHeight;
 		out vec4 outColor;
+		float eyeDepth(int x, int y) {
+			return 1.0;
+		}
+		float eyeAlpha(int x, int y) {
+			return texelFetch(colorTexture, eyeOrigin + ivec2(x, eyeSize.y - 1 - y), 0).a;
+		}
+		${blockFunctions}
 		float halfAlpha(int column, int row) {
-			if (row * 2 >= eyeSize.y) return 0.0;
-			float sum = 0.0;
-			for (int dy = 0; dy < 2; ++dy) {
-				for (int dx = 0; dx < 2; ++dx) {
-					int x = min(column * 2 + dx, eyeSize.x - 1);
-					int y = min(row * 2 + dy, eyeSize.y - 1);
-					sum += texelFetch(colorTexture, eyeOrigin + ivec2(x, eyeSize.y - 1 - y), 0).a;
-				}
-			}
-			return sum * 0.25;
+			return blockAlpha(column, row);
 		}
 		void main() {
 			ivec2 local = ivec2(gl_FragCoord.xy) - destinationOrigin;
@@ -274,11 +337,18 @@
 			return programs;
 		}
 		programs = {
-			copy: compileProgram(gl, copyFragment, ["colorTexture", "sourceOrigin", "destinationOrigin"]),
+			copy: compileProgram(gl, copyFragment, [
+				"colorTexture",
+				"depthTexture",
+				"sourceOrigin",
+				"destinationOrigin",
+				"eyeSize",
+				"fillEmptyFromBlock",
+			]),
 			pack: compileProgram(gl, packFragment, [
 				"depthTexture",
-				"depthOrigin",
-				"depthSize",
+				"eyeOrigin",
+				"eyeSize",
 				"destinationOrigin",
 				"halfWidth",
 				"tileHeight",
@@ -439,10 +509,16 @@
 			if (eye.color) {
 				const rect = eye.color.rect;
 				gl.useProgram(copy.program);
+				gl.activeTexture(gl.TEXTURE1);
+				gl.bindTexture(gl.TEXTURE_2D, target.depth);
+				gl.activeTexture(gl.TEXTURE0);
 				gl.bindTexture(gl.TEXTURE_2D, target.color);
 				gl.uniform1i(copy.uniforms.colorTexture, 0);
+				gl.uniform1i(copy.uniforms.depthTexture, 1);
 				gl.uniform2i(copy.uniforms.sourceOrigin, viewport.x, viewport.y);
 				gl.uniform2i(copy.uniforms.destinationOrigin, rect.x, atlasHeight - rect.y - rect.height);
+				gl.uniform2i(copy.uniforms.eyeSize, eye.width, eye.height);
+				gl.uniform1i(copy.uniforms.fillEmptyFromBlock, eye.depth ? 1 : 0);
 				drawRect(gl, atlasHeight, rect);
 			}
 			if (eye.depth) {
@@ -450,11 +526,11 @@
 				gl.useProgram(pack.program);
 				gl.bindTexture(gl.TEXTURE_2D, target.depth);
 				gl.uniform1i(pack.uniforms.depthTexture, 0);
-				gl.uniform2i(pack.uniforms.depthOrigin, viewport.x, viewport.y);
-				gl.uniform2f(pack.uniforms.depthSize, eye.width, eye.height);
+				gl.uniform2i(pack.uniforms.eyeOrigin, viewport.x, viewport.y);
+				gl.uniform2i(pack.uniforms.eyeSize, eye.width, eye.height);
 				gl.uniform2i(pack.uniforms.destinationOrigin, rect.x, atlasHeight - rect.y - rect.height);
-				gl.uniform1f(pack.uniforms.halfWidth, eye.depth.logicalWidth / 2);
-				gl.uniform1f(pack.uniforms.tileHeight, rect.height);
+				gl.uniform1i(pack.uniforms.halfWidth, eye.depth.logicalWidth / 2);
+				gl.uniform1i(pack.uniforms.tileHeight, rect.height);
 				drawRect(gl, atlasHeight, rect);
 			}
 			if (eye.alpha) {

@@ -133,6 +133,11 @@ class CheckVersionsTests(Scratch):
         profile["Version"] = version
         path.write_text(json.dumps(profile, indent=2), encoding="utf-8")
 
+    def bump_patch(self, name: str) -> None:
+        path = self.dir / "adaptations" / name / "profile.json"
+        major, minor, patch = json.loads(path.read_text(encoding="utf-8"))["Version"].split(".")
+        self.set_version(name, f"{major}.{minor}.{int(patch) + 1}")
+
     def test_change_needs_a_bump(self) -> None:
         for name in ("foxglove", "threejs-shinjuku"):
             shutil.copytree(ROOT / "adaptations" / name, self.dir / "adaptations" / name)
@@ -156,11 +161,11 @@ class CheckVersionsTests(Scratch):
         self.assertEqual(len(errors), 1)
         self.assertIn("foxglove", errors[0])
 
-        self.set_version("foxglove", "0.1.1")
+        self.bump_patch("foxglove")
         errors, _, _ = check_versions.check(self.dir, "2026.11.14.1")
         self.assertEqual(errors, [])
 
-        self.set_version("threejs-shinjuku", "0.1.1")
+        self.bump_patch("threejs-shinjuku")
         errors, _, _ = check_versions.check(self.dir, "2026.11.14.1")
         self.assertEqual(errors, [])  # the version edit is itself a change, and a bump
 

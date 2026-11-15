@@ -37,9 +37,9 @@ A `profile.json` in the repository never holds `Files` or `Signature`: the build
 
 | Folder | Id | Opens | Version |
 |---|---|---|---|
-| `foxglove` | `com.quaternar.foxglove` | https://app.foxglove.dev/ | 0.1.0 |
-| `threejs-examples` | `com.quaternar.threejs-examples` | https://threejs.org/examples/ | 0.1.1 |
-| `threejs-shinjuku` | `com.quaternar.threejs-shinjuku` | Shinjuku Station indoor map demo | 0.1.0 |
+| `foxglove` | `com.quaternar.foxglove` | https://app.foxglove.dev/ | 0.1.1 |
+| `threejs-examples` | `com.quaternar.threejs-examples` | https://threejs.org/examples/ | 0.1.2 |
+| `threejs-shinjuku` | `com.quaternar.threejs-shinjuku` | Shinjuku Station indoor map demo | 0.1.1 |
 
 - QAROS streams the renderer of the top-level page only. A site that shows its content in an
   iframe (the three.js examples gallery) gets no stream: the adaptation opens the frame's own

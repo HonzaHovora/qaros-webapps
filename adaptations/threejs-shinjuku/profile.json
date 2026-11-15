@@ -37,6 +37,6 @@
   "ShareBrowserProfile" : true,
   "StartAddress" : "https://satoshi7190.github.io/Shinjuku-indoor-threejs-demo/",
   "TransportAlpha" : true,
-  "Version" : "0.1.0",
+  "Version" : "0.1.1",
   "_sv" : 3
 }

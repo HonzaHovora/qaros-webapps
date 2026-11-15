@@ -14,6 +14,10 @@ Each adaptation has its own version (`Version` in its `profile.json`); releases 
 
 - Foxglove (https://app.foxglove.dev/) streamed in stereo with depth: the scene of its largest 3D panel renders once per eye of every QAROS user (0.1.0).
 
+#### Bug fixes
+
+- Thin lines and edges keep their depth in the glasses: they no longer show dashed or broken, and keep their full brightness (0.1.1).
+
 ### com.quaternar.threejs-examples
 
 #### Features
@@ -23,6 +27,7 @@ Each adaptation has its own version (`Version` in its `profile.json`); releases 
 #### Bug fixes
 
 - An example picked in the examples gallery now streams: it opens as the page itself instead of inside the gallery's frame, and Back returns to the gallery (0.1.1).
+- Thin lines and edges keep their depth in the glasses: they no longer show dashed or broken, and keep their full brightness (0.1.2).
 
 ### com.quaternar.threejs-littlest-tokyo
 
@@ -39,3 +44,7 @@ Each adaptation has its own version (`Version` in its `profile.json`); releases 
 #### Features
 
 - The Shinjuku Station indoor map demo streamed in stereo with depth as a 1 m table model, its transparent background as alpha (0.1.0).
+
+#### Bug fixes
+
+- Thin lines and edges keep their depth in the glasses: they no longer show dashed or broken, and keep their full brightness (0.1.1).
