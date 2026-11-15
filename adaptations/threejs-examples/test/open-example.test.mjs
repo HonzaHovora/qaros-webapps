@@ -1,4 +1,4 @@
-// adaptations/threejs-examples/scripts/open-example.js: the gallery opens a picked example as the
+// scripts/open-example.js: the gallery opens a picked example as the
 // page itself, so QAROS finds its renderer. No browser needed.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -6,7 +6,7 @@ import test from "node:test";
 import vm from "node:vm";
 
 const source = readFileSync(
-	new URL("../../adaptations/threejs-examples/scripts/open-example.js", import.meta.url),
+	new URL("../scripts/open-example.js", import.meta.url),
 	"utf8"
 );
 

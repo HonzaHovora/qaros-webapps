@@ -20,7 +20,9 @@ Its `signature` block is an ECDSA P-256 / SHA-256 signature by the QAROS release
     make_index.py verify out/webapps-index.json [--public-key release.pub.pem] [--packages out] [--require-signature]
 
 `attach` takes a detached signature (base64 or base64url, raw r||s as Key Vault answers it, or DER)
-made elsewhere over the `digest` output. Standard library only.
+made elsewhere over the `digest` output. Standard library plus the QAROS adaptation kit's
+`qaros_adaptation.qarapp`; `--kit <dir>` anywhere on the command line picks the kit (see
+scripts/kitpath.py).
 """
 
 from __future__ import annotations
@@ -35,7 +37,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import qarapp  # noqa: E402
+import kitpath  # noqa: E402
+
+kitpath.use_or_exit()
+
+from qaros_adaptation import qarapp  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 INDEX_FORMAT_VERSION = 1
@@ -81,8 +87,15 @@ def attach(index: dict, signer: str, public_der: bytes, value_der: bytes) -> dic
 
 
 def load_config(path: Path) -> dict:
+    """release.json. A per-adaptation minQarosVersion may only raise the global one: every package
+    needs at least the QAROS whose adaptation kit provides the libraries it names."""
     config = json.loads(path.read_text(encoding="utf-8"))
-    qarapp.Version.parse(config["minQarosVersion"])
+    minimum = qarapp.Version.parse(config["minQarosVersion"])
+    for name, override in config.get("adaptations", {}).items():
+        if "minQarosVersion" in override and qarapp.Version.parse(override["minQarosVersion"]) < minimum:
+            raise IndexFailure(
+                f"release.json: {name} minQarosVersion {override['minQarosVersion']} is below {config['minQarosVersion']}"
+            )
     return config
 
 
@@ -250,7 +263,7 @@ def _main(argv: list[str]) -> int:
 
 def main() -> int:
     try:
-        return _main(sys.argv[1:])
+        return _main(kitpath.split_kit_argument(sys.argv[1:])[1])
     except (IndexFailure, qarapp.PackageError, OSError, KeyError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

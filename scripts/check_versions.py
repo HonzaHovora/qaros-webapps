@@ -5,7 +5,7 @@ Compares every folder under adaptations/ in the working tree with the same folde
 release tag (the highest `YYYY.MM.DD.N` tag, or --base):
 
   * new folder: its Version must parse (semver);
-  * changed folder (any file differs): its Version must be greater than the released one;
+  * changed folder (any file differs, outside its `test/` folder): its Version must be greater than the released one;
   * unchanged folder: its Version must equal the released one;
   * the Id of a released folder must not change (a new Id is a new adaptation: add a folder);
   * no two folders share an Id, and no profile.json holds `Files` or `Signature` (the build writes
@@ -28,7 +28,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import qarapp  # noqa: E402
+import kitpath  # noqa: E402
+
+kitpath.use_or_exit()
+
+from qaros_adaptation import qarapp  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 RELEASE_TAG = re.compile(r"^(\d{4})\.(\d{2})\.(\d{2})\.(\d+)$")
@@ -61,11 +65,13 @@ def released_profiles(root: Path, tag: str) -> dict[str, dict]:
 
 
 def folder_changed(root: Path, tag: str, name: str) -> bool:
-    """Any committed, staged, unstaged or untracked difference against `tag`."""
+    """Any committed, staged, unstaged or untracked difference against `tag`, outside the folder's
+    `test/` (authoring files, never packaged)."""
     path = f"adaptations/{name}"
-    if git(root, "diff", "--quiet", tag, "--", path, check=False).returncode != 0:
+    paths = ["--", path, f":(exclude){path}/test"]
+    if git(root, "diff", "--quiet", tag, *paths, check=False).returncode != 0:
         return True
-    return bool(git(root, "ls-files", "--others", "--exclude-standard", "--", path).stdout.strip())
+    return bool(git(root, "ls-files", "--others", "--exclude-standard", *paths).stdout.strip())
 
 
 def check(root: Path, base: str | None) -> tuple[list[str], list[str], bool]:
@@ -124,6 +130,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--base", help="release tag to compare with (default: the highest YYYY.MM.DD.N tag)")
     parser.add_argument("--root", type=Path, default=ROOT, help="repository root")
+    parser.add_argument("--kit", type=Path, help="QAROS adaptation kit folder (see scripts/kitpath.py)")
     parser.add_argument("--github-output", type=Path, help="append changed=/previous-tag= to this file")
     args = parser.parse_args()
     try:

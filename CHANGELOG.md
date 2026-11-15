@@ -10,6 +10,10 @@ Each adaptation has its own version (`Version` in its `profile.json`); releases 
 
 ### com.quaternar.foxglove
 
+#### Breaking
+
+- Needs QAROS 0.10.0 or newer: the shared scripts now come from the QAROS install, so library fixes reach Foxglove with QAROS updates. An older QAROS shows the adaptation as not compatible; update QAROS (0.2.0).
+
 #### Features
 
 - Foxglove (https://app.foxglove.dev/) streamed in stereo with depth: the scene of its largest 3D panel renders once per eye of every QAROS user (0.1.0).
@@ -20,9 +24,15 @@ Each adaptation has its own version (`Version` in its `profile.json`); releases 
 
 ### com.quaternar.threejs-examples
 
+#### Breaking
+
+- Needs QAROS 0.10.0 or newer: the shared scripts now come from the QAROS install, so library fixes reach the examples with QAROS updates. An older QAROS shows the adaptation as not compatible; update QAROS (0.2.0).
+
 #### Features
 
 - Any official three.js example (https://threejs.org/examples/) streamed in stereo with depth, one scene unit per metre (0.1.0).
+- The WebGPU examples (`webgpu_*`) stream too, in stereo with depth (0.2.0).
+- Littlest Tokyo (https://threejs.org/examples/#webgl_animation_keyframes) shows at scale 0.2, its size as the former separate adaptation; every other example keeps one scene unit per metre (0.2.0).
 
 #### Bug fixes
 
@@ -40,6 +50,10 @@ Each adaptation has its own version (`Version` in its `profile.json`); releases 
 - Littlest Tokyo is no longer a separate adaptation: open **three.js examples** and pick Littlest Tokyo (https://threejs.org/examples/#webgl_animation_keyframes). Its id is retired and never reused (0.1.0 was its last version).
 
 ### com.quaternar.threejs-shinjuku
+
+#### Breaking
+
+- Needs QAROS 0.10.0 or newer: the shared scripts now come from the QAROS install, so library fixes reach the demo with QAROS updates. An older QAROS shows the adaptation as not compatible; update QAROS (0.2.0).
 
 #### Features
 

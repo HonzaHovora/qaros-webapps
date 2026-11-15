@@ -1,42 +1,42 @@
 {
-  "AddressPattern" : "https://satoshi7190.github.io/Shinjuku-indoor-threejs-demo/*",
-  "AppScale" : 0.00050000000000000001,
-  "ContinuousRendering" : true,
-  "DisplayName" : "three.js Shinjuku Station",
-  "Engine" : "three.js",
-  "Id" : "com.quaternar.threejs-shinjuku",
-  "Name" : "threejs-shinjuku",
-  "PageRegion" : 
-  {
-    "Height" : 1024,
-    "Width" : 1024
+  "AddressPattern": "https://satoshi7190.github.io/Shinjuku-indoor-threejs-demo/*",
+  "AppScale": 0.0005,
+  "ContinuousRendering": true,
+  "DisplayName": "three.js Shinjuku Station",
+  "Engine": "three.js",
+  "Id": "com.quaternar.threejs-shinjuku",
+  "Name": "threejs-shinjuku",
+  "PageRegion": {
+    "Height": 1024,
+    "Width": 1024
   },
-  "Panels" : "panels",
-  "RenderScale" : 0.5,
-  "Scripts" : 
-  [
+  "Panels": "panels",
+  "RenderScale": 0.5,
+  "Scripts": [
     {
-      "File" : "scripts/capture-renderer.js",
-      "JavaScript" : "",
-      "Name" : "capture-renderer",
-      "Stage" : "preDocument"
+      "Library": "threejs-capture@1",
+      "Name": "capture-renderer",
+      "Stage": "preDocument"
     },
     {
-      "File" : "scripts/render-frame-core.js",
-      "JavaScript" : "",
-      "Name" : "render-frame-core",
-      "Stage" : "afterLoad"
+      "Library": "render-frame-core@1",
+      "Name": "render-frame-core",
+      "Stage": "afterLoad"
     },
     {
-      "File" : "scripts/render-frame-handler.js",
-      "JavaScript" : "",
-      "Name" : "render-frame-handler",
-      "Stage" : "afterLoad"
+      "Library": "webgl-atlas-pack@1",
+      "Name": "atlas-pack",
+      "Stage": "afterLoad"
+    },
+    {
+      "Library": "threejs-render-frame@1",
+      "Name": "render-frame-handler",
+      "Stage": "afterLoad"
     }
   ],
-  "ShareBrowserProfile" : true,
-  "StartAddress" : "https://satoshi7190.github.io/Shinjuku-indoor-threejs-demo/",
-  "TransportAlpha" : true,
-  "Version" : "0.1.1",
-  "_sv" : 3
+  "ShareBrowserProfile": true,
+  "StartAddress": "https://satoshi7190.github.io/Shinjuku-indoor-threejs-demo/",
+  "TransportAlpha": true,
+  "Version": "0.2.0",
+  "_sv": 3
 }

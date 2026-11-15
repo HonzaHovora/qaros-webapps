@@ -1,20 +1,26 @@
 #!/usr/bin/env python3
 """Build one `.qarapp` package per adaptation folder, optionally signed, and verify each.
 
-For every folder under adaptations/ (or the ones named with --only) this
+A thin wrapper over the QAROS adaptation kit's packaging (`qaros_adaptation.packaging`, the same
+steps as `qaros-adaptation package`). For every folder under adaptations/ (or the ones named with
+--only) the kit
 
-  1. copies the folder to <out>/staging/<name> (the repository is never written),
-  2. writes the file manifest (`Files`) into the copy's profile.json,
-  3. signs it when a key is given:
+  1. checks the folder (`qaros-adaptation check`: profile, every `Library` in the kit, script order),
+  2. copies it to a staging folder (the repository is never written), leaving out `test/`,
+  3. writes the file manifest (`Files`) into the copy's profile.json,
+  4. signs it when a key is given:
        --key-vault: digest -> `az keyvault key sign --algorithm ES256` -> attach (release builds),
        --private-key: a local PEM key (test runs only; never commit one),
-  4. writes <out>/<id>-<version>.qarapp,
-  5. reads the package back and verifies it (files, manifest, signature against --public-key),
-     and with --tool also with qar-adaptation-tool (`verify <package> <public.pem>`).
+  5. writes <out>/<id>-<version>.qarapp and reads it back as QAROS imports it (files, manifest,
+     signature against --public-key); with --tool also with qar-adaptation-tool
+     (`verify <package> <public.pem>`).
 
-Standard library only:
+`Library` references stay references: QAROS resolves them from its own kit at load time.
 
-    python -I scripts/build_packages.py --out out
+The kit is found with --kit, the environment variable QAROS_ADAPTATION_KIT, or at
+.qaros/adaptation-kit (where CI checks out Quaternar/qaros); see scripts/kitpath.py.
+
+    python -I scripts/build_packages.py --out out [--kit <qaros>/adaptation-kit]
     python -I scripts/build_packages.py --out out --public-key release.pub.pem \\
         --key-vault <vault> --key-name qaros-release
 """
@@ -30,9 +36,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import qarapp  # noqa: E402
+import kitpath  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = kitpath.ROOT
+
+kitpath.use_or_exit()
+
+from qaros_adaptation import kit as kitlib  # noqa: E402
+from qaros_adaptation import packaging, qarapp  # noqa: E402
 
 
 def adaptation_folders(adaptations: Path, only: list[str]) -> list[Path]:
@@ -47,16 +58,6 @@ def adaptation_folders(adaptations: Path, only: list[str]) -> list[Path]:
     return folders
 
 
-def check_source(folder: Path) -> dict:
-    """The repository holds unsigned adaptations without a manifest: both are written at build time."""
-    profile = qarapp.read_profile(folder)
-    for key in ("Files", "Signature"):
-        if key in profile:
-            raise qarapp.PackageError(f"{folder.name}/profile.json holds '{key}'; remove it (the build writes it)")
-    qarapp.check_profile(profile, {entry["Path"] for entry in qarapp.file_manifest(folder)})
-    return profile
-
-
 def verify_with_tool(tool: Path, package: Path, public_key: Path, signer: str) -> str:
     completed = subprocess.run(
         [str(tool), "verify", str(package), str(public_key), signer], capture_output=True, text=True, check=False
@@ -66,23 +67,31 @@ def verify_with_tool(tool: Path, package: Path, public_key: Path, signer: str) -
     return completed.stdout.strip()
 
 
+def unpack(package: Path, folder: Path) -> None:
+    """The package's adaptation folder, as QAROS stores it (for --keep-staging)."""
+    prefix = qarapp.CONTENT_FOLDER + "/"
+    for name, data in qarapp.read_zip(package.read_bytes()):
+        if name.startswith(prefix):
+            target = folder / name[len(prefix):]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+
+
 def build(args: argparse.Namespace) -> list[Path]:
+    signing = packaging.signing_options(
+        private_key=args.private_key,
+        key_vault=args.key_vault,
+        key_name=args.key_name,
+        public_key=args.public_key,
+        signer=args.signer,
+    )
     public_der = None
     if args.public_key is not None:
         public_der = qarapp.public_key_der_from_pem(args.public_key.read_text(encoding="ascii"))
-    signer = None
-    if args.key_vault:
-        if public_der is None:
-            raise qarapp.PackageError("--key-vault needs --public-key (the key's public half, PEM)")
-        signer = qarapp.KeyVaultKey(args.key_vault, args.key_name).sign
-    elif args.private_key is not None:
-        key = qarapp.SigningKey.load(args.private_key)
-        if public_der is None:
-            public_der = key.public_der
-        elif public_der != key.public_der:
-            raise qarapp.PackageError("--private-key does not belong to --public-key")
-        signer = key.sign
+    elif signing is not None:
+        public_der = signing.public_der
     trusted = [(args.signer, public_der)] if public_der is not None else None
+    kit = kitlib.load_kit(kitpath.locate(args.kit))
 
     tool_key = args.public_key
     scratch = None
@@ -93,35 +102,26 @@ def build(args: argparse.Namespace) -> list[Path]:
         tool_key.write_text(qarapp.public_key_pem(qarapp.keygen().public_der), encoding="ascii")
 
     out = args.out.resolve()
+    out.mkdir(parents=True, exist_ok=True)
     staging = out / "staging"
     if staging.exists():
         shutil.rmtree(staging)
     packages = []
     try:
         for folder in adaptation_folders(args.adaptations, args.only):
-            profile = check_source(folder)
-            copy = staging / folder.name
-            shutil.copytree(folder, copy)
-            if signer is not None:
-                qarapp.sign_folder(copy, args.signer, signer, public_der)
-            else:
-                qarapp.write_manifest(copy)
-            package = out / qarapp.package_file_name(profile["Id"], profile["Version"])
-            qarapp.export_package(copy, package)
-            result = qarapp.read_package(package, trusted).verification
-            if signer is not None and not result.signed:
-                raise qarapp.PackageError(f"{package.name} is not signed")
-            state = f"signed by {result.signer}" if result.signed else "unsigned"
+            result = packaging.build_package(folder, out, signing=signing, trusted=trusted, kit=kit)
+            package = result.path
+            state = f"signed by {result.verification.signer}" if result.verification.signed else "unsigned"
             line = f"{package.name}: ok, {state}"
             if args.tool is not None:
                 line += f"; {args.tool.name}: {verify_with_tool(args.tool, package, tool_key, args.signer)}"
             print(line)
+            if args.keep_staging:
+                unpack(package, staging / folder.name)
             packages.append(package)
     finally:
         if scratch is not None:
             shutil.rmtree(scratch, ignore_errors=True)
-        if not args.keep_staging and staging.exists():
-            shutil.rmtree(staging)
     return packages
 
 
@@ -136,13 +136,14 @@ def main() -> int:
     parser.add_argument("--private-key", type=Path, help="local PEM private key instead of Key Vault (test runs only)")
     parser.add_argument("--signer", default=qarapp.DEFAULT_SIGNER, help="signer name (default: Quaternar)")
     parser.add_argument("--tool", type=Path, help="qar-adaptation-tool executable: also verify every package with it")
-    parser.add_argument("--keep-staging", action="store_true", help="keep <out>/staging (the signed folders)")
+    parser.add_argument("--keep-staging", action="store_true", help="also write each package's folder to <out>/staging/<name>")
+    parser.add_argument("--kit", type=Path, help=f"QAROS adaptation kit folder (default: ${kitpath.ENVIRONMENT}, else {kitpath.DEFAULT_KIT})")
     args = parser.parse_args()
     if args.key_vault and args.private_key:
         parser.error("pass --key-vault or --private-key, not both")
     try:
         packages = build(args)
-    except (qarapp.PackageError, OSError) as error:
+    except (packaging.BuildError, qarapp.PackageError, kitlib.KitError, kitpath.KitNotFound, OSError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(f"{len(packages)} packages in {args.out}")

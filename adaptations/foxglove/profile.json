@@ -1,47 +1,47 @@
 {
-  "AddressPattern" : "https://app.foxglove.dev/*",
-  "AppScale" : 0.02,
-  "ContinuousRendering" : true,
-  "DisplayName" : "Foxglove",
-  "Engine" : "three.js",
-  "Id" : "com.quaternar.foxglove",
-  "Name" : "foxglove",
-  "PageRegion" : 
-  {
-    "Height" : 1024,
-    "Width" : 1280
+  "AddressPattern": "https://app.foxglove.dev/*",
+  "AppScale": 0.02,
+  "ContinuousRendering": true,
+  "DisplayName": "Foxglove",
+  "Engine": "three.js",
+  "Id": "com.quaternar.foxglove",
+  "Name": "foxglove",
+  "PageRegion": {
+    "Height": 1024,
+    "Width": 1280
   },
-  "Panels" : "panels",
-  "RenderScale" : 0.5,
-  "Scripts" : 
-  [
+  "Panels": "panels",
+  "RenderScale": 0.5,
+  "Scripts": [
     {
-      "File" : "scripts/capture-renderer.js",
-      "JavaScript" : "",
-      "Name" : "capture-renderer",
-      "Stage" : "preDocument"
+      "Library": "threejs-capture@1",
+      "Name": "capture-renderer",
+      "Stage": "preDocument"
     },
     {
-      "File" : "scripts/render-frame-core.js",
-      "JavaScript" : "",
-      "Name" : "render-frame-core",
-      "Stage" : "afterLoad"
+      "Library": "render-frame-core@1",
+      "Name": "render-frame-core",
+      "Stage": "afterLoad"
     },
     {
-      "File" : "scripts/render-frame-handler.js",
-      "JavaScript" : "",
-      "Name" : "render-frame-handler",
-      "Stage" : "afterLoad"
+      "Library": "webgl-atlas-pack@1",
+      "Name": "atlas-pack",
+      "Stage": "afterLoad"
     },
     {
-      "File" : "scripts/foxglove-scene.js",
-      "JavaScript" : "",
-      "Name" : "foxglove-scene",
-      "Stage" : "afterLoad"
+      "Library": "threejs-render-frame@1",
+      "Name": "render-frame-handler",
+      "Stage": "afterLoad"
+    },
+    {
+      "File": "scripts/foxglove-scene.js",
+      "JavaScript": "",
+      "Name": "foxglove-scene",
+      "Stage": "afterLoad"
     }
   ],
-  "ShareBrowserProfile" : true,
-  "StartAddress" : "https://app.foxglove.dev/",
-  "Version" : "0.1.1",
-  "_sv" : 3
+  "ShareBrowserProfile": true,
+  "StartAddress": "https://app.foxglove.dev/",
+  "Version": "0.2.0",
+  "_sv": 3
 }
