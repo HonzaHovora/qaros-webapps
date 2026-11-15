@@ -20,6 +20,10 @@ Each adaptation has its own version (`Version` in its `profile.json`); releases 
 
 - Any official three.js example (https://threejs.org/examples/) streamed in stereo with depth, one scene unit per metre (0.1.0).
 
+#### Bug fixes
+
+- An example picked in the examples gallery now streams: it opens as the page itself instead of inside the gallery's frame, and Back returns to the gallery (0.1.1).
+
 ### com.quaternar.threejs-littlest-tokyo
 
 #### Features

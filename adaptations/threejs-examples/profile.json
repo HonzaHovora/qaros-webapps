@@ -32,10 +32,16 @@
       "JavaScript" : "",
       "Name" : "render-frame-handler",
       "Stage" : "afterLoad"
+    },
+    {
+      "File" : "scripts/open-example.js",
+      "JavaScript" : "",
+      "Name" : "open-example",
+      "Stage" : "afterLoad"
     }
   ],
   "ShareBrowserProfile" : true,
   "StartAddress" : "https://threejs.org/examples/",
-  "Version" : "0.1.0",
+  "Version" : "0.1.1",
   "_sv" : 3
 }

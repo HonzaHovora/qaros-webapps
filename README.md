@@ -38,9 +38,15 @@ A `profile.json` in the repository never holds `Files` or `Signature`: the build
 | Folder | Id | Opens | Version |
 |---|---|---|---|
 | `foxglove` | `com.quaternar.foxglove` | https://app.foxglove.dev/ | 0.1.0 |
-| `threejs-examples` | `com.quaternar.threejs-examples` | https://threejs.org/examples/ | 0.1.0 |
+| `threejs-examples` | `com.quaternar.threejs-examples` | https://threejs.org/examples/ | 0.1.1 |
 | `threejs-littlest-tokyo` | `com.quaternar.threejs-littlest-tokyo` | three.js `webgl_animation_keyframes` | 0.1.0 |
 | `threejs-shinjuku` | `com.quaternar.threejs-shinjuku` | Shinjuku Station indoor map demo | 0.1.0 |
+
+- QAROS streams the renderer of the top-level page only. A site that shows its content in an
+  iframe (the three.js examples gallery) gets no stream: the adaptation opens the frame's own
+  address as the page instead (`threejs-examples/scripts/open-example.js`).
+- WebGPU three.js examples (`webgpu_*`) load and show in the page, but the shared stereo and
+  depth pass needs a WebGL renderer, so they do not stream.
 
 ## Versioning
 
