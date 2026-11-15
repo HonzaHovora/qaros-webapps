@@ -19,7 +19,7 @@ every adaptation whose copy changed.
 Tests (Node 20 or newer, no packages):
 
 ```
-node --test shared/render-frame-core.test.mjs shared/threejs/threejs-capture.test.mjs
+node --test shared/render-frame-core.test.mjs shared/threejs/threejs-capture.test.mjs shared/threejs/threejs-depth-pack.test.mjs
 ```
 
 `threejs/build-threejs-profile.mjs` builds a single-file three.js profile for a new site (used by

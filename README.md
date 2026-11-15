@@ -37,10 +37,9 @@ A `profile.json` in the repository never holds `Files` or `Signature`: the build
 
 | Folder | Id | Opens | Version |
 |---|---|---|---|
-| `foxglove` | `com.quaternar.foxglove` | https://app.foxglove.dev/ | 0.1.0 |
-| `threejs-examples` | `com.quaternar.threejs-examples` | https://threejs.org/examples/ | 0.1.1 |
-| `threejs-littlest-tokyo` | `com.quaternar.threejs-littlest-tokyo` | three.js `webgl_animation_keyframes` | 0.1.0 |
-| `threejs-shinjuku` | `com.quaternar.threejs-shinjuku` | Shinjuku Station indoor map demo | 0.1.0 |
+| `foxglove` | `com.quaternar.foxglove` | https://app.foxglove.dev/ | 0.1.1 |
+| `threejs-examples` | `com.quaternar.threejs-examples` | https://threejs.org/examples/ | 0.1.2 |
+| `threejs-shinjuku` | `com.quaternar.threejs-shinjuku` | Shinjuku Station indoor map demo | 0.1.1 |
 
 - QAROS streams the renderer of the top-level page only. A site that shows its content in an
   iframe (the three.js examples gallery) gets no stream: the adaptation opens the frame's own
@@ -165,7 +164,7 @@ output as static folders:
 
 | Here | Came from |
 |---|---|
-| `threejs-littlest-tokyo`, `threejs-examples`, `threejs-shinjuku` | generated from the three.js libraries with page region 1024 x 1024, `RenderScale` 0.5, per example `AppScale` and address; Shinjuku with `TransportAlpha`. Scripts: `threejs-capture.js` as `capture-renderer`, `render-frame-core.js`, `threejs-render-frame.js` as `render-frame-handler` |
+| `threejs-examples`, `threejs-shinjuku` | generated from the three.js libraries with page region 1024 x 1024, `RenderScale` 0.5, per example `AppScale` and address; Shinjuku with `TransportAlpha`. Scripts: `threejs-capture.js` as `capture-renderer`, `render-frame-core.js`, `threejs-render-frame.js` as `render-frame-handler` |
 | `foxglove` | a manifest naming the same three libraries plus its own `foxglove-scene.js`, page region 1280 x 1024 |
 | `scripts/<script>.js` | the library or local file, with `__PAGE_REGION_WIDTH__`/`__PAGE_REGION_HEIGHT__` replaced by the page region |
 | `profile.json` | the manifest with `_sv` 3, `ShareBrowserProfile` true, `Id` `com.quaternar.<name>`, `DisplayName`, `Version`, `Panels` `panels`, `StartAddress`, each script as `File` `scripts/<name>.js` with empty `JavaScript` |
