@@ -18,7 +18,7 @@ Run before committing, as CI does:
 
 ```
 python -I -m unittest discover -s scripts/tests
-node --test shared/render-frame-core.test.mjs shared/threejs/threejs-capture.test.mjs
+node --test shared/render-frame-core.test.mjs shared/threejs/threejs-capture.test.mjs scripts/tests/threejs-examples-open-example.test.mjs
 python -I scripts/sync_shared.py --check
 python -I scripts/check_versions.py
 python -I scripts/build_packages.py --out out
