@@ -30,6 +30,10 @@ Each adaptation has its own version (`Version` in its `profile.json`); releases 
 
 - The three.js Littlest Tokyo example (animated glTF) streamed in stereo with depth (0.1.0).
 
+#### Removed
+
+- Littlest Tokyo is no longer a separate adaptation: open **three.js examples** and pick Littlest Tokyo (https://threejs.org/examples/#webgl_animation_keyframes). Its id is retired and never reused (0.1.0 was its last version).
+
 ### com.quaternar.threejs-shinjuku
 
 #### Features

@@ -7,9 +7,6 @@
     "threejs-examples/scripts/capture-renderer.js": "threejs/threejs-capture.js",
     "threejs-examples/scripts/render-frame-core.js": "render-frame-core.js",
     "threejs-examples/scripts/render-frame-handler.js": "threejs/threejs-render-frame.js",
-    "threejs-littlest-tokyo/scripts/capture-renderer.js": "threejs/threejs-capture.js",
-    "threejs-littlest-tokyo/scripts/render-frame-core.js": "render-frame-core.js",
-    "threejs-littlest-tokyo/scripts/render-frame-handler.js": "threejs/threejs-render-frame.js",
     "threejs-shinjuku/scripts/capture-renderer.js": "threejs/threejs-capture.js",
     "threejs-shinjuku/scripts/render-frame-core.js": "render-frame-core.js",
     "threejs-shinjuku/scripts/render-frame-handler.js": "threejs/threejs-render-frame.js"
