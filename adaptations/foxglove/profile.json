@@ -11,6 +11,7 @@
     "Width": 1280
   },
   "Panels": "panels",
+  "RenderRate": 60,
   "RenderScale": 0.5,
   "Scripts": [
     {

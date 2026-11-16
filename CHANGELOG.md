@@ -16,6 +16,7 @@ Each adaptation has its own version (`Version` in its `profile.json`); releases 
 
 #### Features
 
+- Renders at 60 frames per second (`RenderRate`); QAROS renders web apps at 30 unless an adaptation asks for more (0.2.0).
 - Foxglove (https://app.foxglove.dev/) streamed in stereo with depth: the scene of its largest 3D panel renders once per eye of every QAROS user (0.1.0).
 
 #### Bug fixes
@@ -58,6 +59,7 @@ Each adaptation has its own version (`Version` in its `profile.json`); releases 
 
 #### Features
 
+- Renders at 60 frames per second (`RenderRate`); QAROS renders web apps at 30 unless an adaptation asks for more (0.2.0).
 - The Shinjuku Station indoor map demo streamed in stereo with depth as a 1 m table model, its transparent background as alpha (0.1.0).
 
 #### Bug fixes
