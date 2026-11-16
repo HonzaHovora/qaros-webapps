@@ -154,3 +154,6 @@ vite.config.ts.timestamp-*
 __pycache__/
 *.pem
 *.key
+
+# QAROS adaptation kit checkout (CI)
+/.qaros/

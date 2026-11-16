@@ -7,27 +7,33 @@ holds and how releases are made: [README.md](README.md).
 
 - Adaptations useful to a broad audience, the ones the QAROS Visualizer shows in user mode.
   Developer and debugging samples stay with the QAROS product.
-- One folder per adaptation under `adaptations/`; everything in it is packaged. Never put
+- One folder per adaptation under `adaptations/`; everything in it but `test/` is packaged. Never put
   `Files` or `Signature` into a `profile.json` (the build writes them).
-- A script copied from `shared/` is changed in `shared/`, then `python -I scripts/sync_shared.py`
-  updates every copy.
+- Shared scripts are QAROS adaptation kit libraries, named in `profile.json` as
+  `"Library": "<name>@<major>"`; never copy one into an adaptation. A library fix is made in the
+  kit (public repository Quaternar/qaros, `adaptation-kit/lib/`). Own scripts stay `File`.
+- Tests of an adaptation go into its `test/` folder (`*.test.mjs`); they are never packaged, and a
+  change there needs no version bump.
+- `release.json` `minQarosVersion` is the first QAROS whose kit has every library the adaptations
+  name; raise it when an adaptation needs a newer library or major.
 
 ## Checks
 
-Run before committing, as CI does:
+Run before committing, as CI does, with the kit checked out at `.qaros` (or `--kit <dir>`, or
+`QAROS_ADAPTATION_KIT`; see README.md, Tooling):
 
 ```
-python -I -m unittest discover -s scripts/tests
-node --test shared/render-frame-core.test.mjs shared/threejs/threejs-capture.test.mjs shared/threejs/threejs-depth-pack.test.mjs scripts/tests/threejs-examples-open-example.test.mjs
-python -I scripts/sync_shared.py --check
-python -I scripts/check_versions.py
+python -I scripts/ci.py check
 python -I scripts/build_packages.py --out out
 ```
+
+`ci.py check` runs the tooling tests, `qaros-adaptation check` and `test` on every adaptation, and
+`check_versions.py`.
 
 ## Versions
 
 - Each adaptation has its own Semantic Version, `Version` in its `profile.json`.
-- Any change to an adaptation folder bumps that adaptation's `Version` **in the same commit**:
+- Any change to an adaptation folder (outside `test/`) bumps that adaptation's `Version` **in the same commit**:
   - below 1.0 (all adaptations today): `MINOR` for features and breaking changes, `PATCH` for
     fixes;
   - from 1.0: `MAJOR` for breaking changes, `MINOR` for features, `PATCH` for fixes.

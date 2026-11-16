@@ -16,36 +16,60 @@ https://github.com/Quaternar/qaros-webapps/releases/latest/download/webapps-inde
 ## Layout
 
 ```
-adaptations/<name>/          one adaptation folder, packaged as it is
+adaptations/<name>/          one adaptation folder, packaged as it is (except test/)
   profile.json               Id, Name, DisplayName, Version, StartAddress, AddressPattern, PageRegion, Scripts, ...
-  scripts/*.js               the scripts profile.json names (Scripts[].File)
+  scripts/*.js               the adaptation's own scripts (Scripts[].File)
   panels/                    optional served panel pages
-shared/                      libraries several adaptations copy (see shared/README.md)
-  copies.json                which adaptation script is a copy of which library
+  test/*.test.mjs            optional Node tests of the adaptation (never packaged)
 schemas/webapps-index.schema.json
-scripts/                     build tooling (Python 3, standard library only)
-release.json                 repository name and the minimum QAROS version per adaptation
+scripts/                     build tooling (Python 3, standard library plus the QAROS adaptation kit)
+release.json                 repository name and the minimum QAROS version, globally or per adaptation
 CHANGELOG.md                 changes per release, grouped per adaptation
 AGENTS.md                    contribution rules (versions, changelog, public-repo rules)
 .github/workflows/           ci.yml (pull requests), release.yml (main)
 ```
 
-Everything in an adaptation folder ends up in its package, so keep only adaptation files there.
-A `profile.json` in the repository never holds `Files` or `Signature`: the build writes both.
+Everything in an adaptation folder except `test/` ends up in its package, so keep only adaptation
+files there. A `profile.json` in the repository never holds `Files` or `Signature`: the build writes
+both.
+
+## Libraries from the QAROS adaptation kit
+
+The scripts several adaptations share (three.js renderer capture, the render-frame core, the
+atlas pack, the three.js render frame for WebGL and WebGPU) are not copied here. A profile names
+them by `name@major`, and QAROS injects the library of its own installed adaptation kit when the
+page loads:
+
+```json
+{ "Name": "render-frame-handler", "Stage": "afterLoad", "Library": "threejs-render-frame@1" }
+```
+
+- A library fix reaches every adaptation with the next QAROS, without a new adaptation version.
+- The kit is the public repository [Quaternar/qaros](https://github.com/Quaternar/qaros), folder
+  `adaptation-kit`: libraries, the `qaros-adaptation` command line (`check`, `test`, `package`,
+  `pin`) and the guide. Its version follows QAROS.
+- QAROS resolves `Library` references from version 0.10.0, so `release.json` sets
+  `minQarosVersion` to 0.10.0: an older QAROS reports the adaptations as not compatible instead of
+  loading them without their libraries.
+- An adaptation's own scripts stay files in its folder (`File`).
 
 ## Adaptations
 
 | Folder | Id | Opens | Version |
 |---|---|---|---|
-| `foxglove` | `com.quaternar.foxglove` | https://app.foxglove.dev/ | 0.1.1 |
-| `threejs-examples` | `com.quaternar.threejs-examples` | https://threejs.org/examples/ | 0.1.2 |
-| `threejs-shinjuku` | `com.quaternar.threejs-shinjuku` | Shinjuku Station indoor map demo | 0.1.1 |
+| `foxglove` | `com.quaternar.foxglove` | https://app.foxglove.dev/ | 0.2.0 |
+| `threejs-examples` | `com.quaternar.threejs-examples` | https://threejs.org/examples/ | 0.2.0 |
+| `threejs-shinjuku` | `com.quaternar.threejs-shinjuku` | Shinjuku Station indoor map demo | 0.2.0 |
 
 - QAROS streams the renderer of the top-level page only. A site that shows its content in an
   iframe (the three.js examples gallery) gets no stream: the adaptation opens the frame's own
   address as the page instead (`threejs-examples/scripts/open-example.js`).
-- WebGPU three.js examples (`webgpu_*`) load and show in the page, but the shared stereo and
-  depth pass needs a WebGL renderer, so they do not stream.
+- three.js examples stream with a `WebGLRenderer` and with a `WebGPURenderer` (the `webgpu_*`
+  examples): the profile lists both kit render-frame libraries, and each request goes to the one
+  for the renderer the page created.
+- Scale: one three.js scene unit is one metre (`AppScale` 1). `AppScaleByAddress` sets another
+  scale for single examples, first match wins: `webgl_animation_keyframes` (Littlest Tokyo) is
+  shown at 0.2. `threejs-examples/test/app-scale.test.mjs` checks the mapping.
 
 ## Versioning
 
@@ -62,7 +86,8 @@ A `profile.json` in the repository never holds `Files` or `Signature`: the build
   reused and never goes down.
 - `Id` is permanent. A different Id is a different adaptation: add a new folder.
 - `release.json` sets `minQarosVersion` (the oldest QAROS that installs the packages), globally or
-  per folder under `adaptations`.
+  per folder under `adaptations`. A per-folder value may only raise the global one, which is the
+  first QAROS with the adaptation kit (`make_index.py` refuses a lower one).
 - QAROS stops shipping its own copies of these adaptations and takes them from this repository's
   releases, so QAROS product versions and adaptation versions never compete.
 - Releases currently use date-based tags (`YYYY.MM.DD.N`), not the shared QAROS scheme in [ADR-0001: One versioning scheme for every QAROS repository](https://github.com/Quaternar/qaros/blob/main/docs/adr/0001-one-versioning-scheme.md). Moving to it needs the tools that pick the newest release changed first.
@@ -71,7 +96,8 @@ A `profile.json` in the repository never holds `Files` or `Signature`: the build
 
 Every merge to `main` that changes an adaptation publishes a release (several a day are fine):
 
-1. tests, shared library copies, version check;
+1. tooling tests, `qaros-adaptation check` and `test` on every adaptation (against the kit, see
+   below), version check;
 2. one package per adaptation: `<id>-<version>.qarapp`;
 3. when signing is configured: each package signed with the QAROS release key, held in Azure Key
    Vault (the build hands the package digest to `az keyvault key sign --algorithm ES256` and
@@ -133,17 +159,30 @@ block (same fields, lower camel case) covers
 
 ## Tooling
 
-Python 3.10 or newer, standard library only; run with `python -I`.
+Python 3.10 or newer, standard library only, plus the QAROS adaptation kit; Node.js 20 or newer for
+the adaptation tests. Run with `python -I`.
+
+The scripts find the kit with `--kit <dir>`, else the environment variable `QAROS_ADAPTATION_KIT`,
+else `.qaros/adaptation-kit` (a checkout of Quaternar/qaros in this folder, ignored by git; CI puts
+it there). CI checks out the tag `v<minQarosVersion>` of `release.json`, or the default branch
+while that tag does not exist yet (`scripts/ci.py kit-ref` says which).
 
 ```
+git clone https://github.com/Quaternar/qaros .qaros      the kit, where the scripts look by default
+python -I scripts/ci.py check                            everything CI checks (the lines below)
 python -I -m unittest discover -s scripts/tests          tooling tests
-python -I scripts/sync_shared.py [--check]               shared library copies
+python -I .qaros/adaptation-kit/tools/qaros-adaptation.py check adaptations/<name>
+python -I .qaros/adaptation-kit/tools/qaros-adaptation.py test adaptations/<name>
 python -I scripts/check_versions.py [--base <tag>]       version bumps against the previous release
-python -I scripts/build_packages.py --out out            unsigned packages, verified
+python -I scripts/build_packages.py --out out            unsigned packages, verified (the kit's packaging)
 python -I scripts/make_index.py build --packages out --release 2026.01.01.1 --out out/webapps-index.json
 python -I scripts/make_index.py verify out/webapps-index.json --packages out
 python -I scripts/qarapp.py verify out/<package>.qarapp [--public-key key.pem]
 ```
+
+`scripts/qarapp.py` is the kit's `.qarapp` command line (`qaros_adaptation.qarapp`), and
+`build_packages.py` calls the kit's packaging (`qaros_adaptation.packaging`), the same steps as
+`qaros-adaptation package`.
 
 Signing locally (testing only; never commit a key, `*.pem` is ignored):
 
@@ -165,11 +204,10 @@ output as static folders:
 
 | Here | Came from |
 |---|---|
-| `threejs-examples`, `threejs-shinjuku` | generated from the three.js libraries with page region 1024 x 1024, `RenderScale` 0.5, per example `AppScale` and address; Shinjuku with `TransportAlpha`. Scripts: `threejs-capture.js` as `capture-renderer`, `render-frame-core.js`, `threejs-render-frame.js` as `render-frame-handler` |
-| `foxglove` | a manifest naming the same three libraries plus its own `foxglove-scene.js`, page region 1280 x 1024 |
-| `scripts/<script>.js` | the library or local file, with `__PAGE_REGION_WIDTH__`/`__PAGE_REGION_HEIGHT__` replaced by the page region |
-| `profile.json` | the manifest with `_sv` 3, `ShareBrowserProfile` true, `Id` `com.quaternar.<name>`, `DisplayName`, `Version`, `Panels` `panels`, `StartAddress`, each script as `File` `scripts/<name>.js` with empty `JavaScript` |
-| `shared/` | the shared libraries these adaptations copy, plus `ui-confinement.js` for the three.js profile builder |
+| `threejs-examples`, `threejs-shinjuku` | generated from the three.js libraries with page region 1024 x 1024, `RenderScale` 0.5, per example `AppScale` and address; Shinjuku with `TransportAlpha` |
+| `foxglove` | a manifest naming the same libraries plus its own `foxglove-scene.js`, page region 1280 x 1024 |
+| `scripts/<script>.js` | the local file, with `__PAGE_REGION_WIDTH__`/`__PAGE_REGION_HEIGHT__` replaced by the page region |
+| `profile.json` | the manifest with `_sv` 3, `ShareBrowserProfile` true, `Id` `com.quaternar.<name>`, `DisplayName`, `Version`, `Panels` `panels`, `StartAddress`; the libraries as `Library` references (they were copies up to 0.1.x) |
 
 Differences from what earlier QAROS builds shipped, none of which changes behaviour:
 

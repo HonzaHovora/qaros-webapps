@@ -10,8 +10,13 @@ Each adaptation has its own version (`Version` in its `profile.json`); releases 
 
 ### com.quaternar.foxglove
 
+#### Breaking
+
+- Needs QAROS 0.10.0 or newer: the shared scripts now come from the QAROS install, so library fixes reach Foxglove with QAROS updates. An older QAROS shows the adaptation as not compatible; update QAROS (0.2.0).
+
 #### Features
 
+- Renders at 60 frames per second (`RenderRate`); QAROS renders web apps at 30 unless an adaptation asks for more (0.2.0).
 - Foxglove (https://app.foxglove.dev/) streamed in stereo with depth: the scene of its largest 3D panel renders once per eye of every QAROS user (0.1.0).
 
 #### Bug fixes
@@ -20,9 +25,16 @@ Each adaptation has its own version (`Version` in its `profile.json`); releases 
 
 ### com.quaternar.threejs-examples
 
+#### Breaking
+
+- Needs QAROS 0.10.0 or newer: the shared scripts now come from the QAROS install, so library fixes reach the examples with QAROS updates. An older QAROS shows the adaptation as not compatible; update QAROS (0.2.0).
+
 #### Features
 
+- Examples render at 60 frames per second (`RenderRate`); QAROS renders web apps at 30 unless an adaptation asks for more (0.2.0).
 - Any official three.js example (https://threejs.org/examples/) streamed in stereo with depth, one scene unit per metre (0.1.0).
+- The WebGPU examples (`webgpu_*`) stream too, in stereo with depth (0.2.0).
+- Littlest Tokyo (https://threejs.org/examples/#webgl_animation_keyframes) shows at scale 0.2, its size as the former separate adaptation; every other example keeps one scene unit per metre (0.2.0).
 
 #### Bug fixes
 
@@ -41,8 +53,13 @@ Each adaptation has its own version (`Version` in its `profile.json`); releases 
 
 ### com.quaternar.threejs-shinjuku
 
+#### Breaking
+
+- Needs QAROS 0.10.0 or newer: the shared scripts now come from the QAROS install, so library fixes reach the demo with QAROS updates. An older QAROS shows the adaptation as not compatible; update QAROS (0.2.0).
+
 #### Features
 
+- Renders at 60 frames per second (`RenderRate`); QAROS renders web apps at 30 unless an adaptation asks for more (0.2.0).
 - The Shinjuku Station indoor map demo streamed in stereo with depth as a 1 m table model, its transparent background as alpha (0.1.0).
 
 #### Bug fixes

@@ -1,6 +1,7 @@
 name: Release
 
-# Every merge to main: check versions, build a .qarapp per adaptation, verify, and publish a release
+# Every merge to main: check versions, build a .qarapp per adaptation with the QAROS adaptation kit
+# (Quaternar/qaros at tag v<minQarosVersion>, else its default branch), verify, and publish a release
 # tagged YYYY.MM.DD.N. A push that changes no adaptation publishes nothing (run the workflow by hand
 # with "force" to publish anyway).
 #
@@ -52,15 +53,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Tooling tests
-        run: python3 -I -m unittest discover -s scripts/tests
+      - name: Adaptation kit ref (tag v<minQarosVersion>, else the default branch)
+        id: kit
+        run: python3 -I scripts/ci.py kit-ref --github-output "$GITHUB_OUTPUT"
 
-      - name: Shared library copies in step
-        run: python3 -I scripts/sync_shared.py --check
+      - name: Checkout the adaptation kit (Quaternar/qaros)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Quaternar/qaros
+          ref: ${{ steps.kit.outputs.ref }}
+          path: .qaros
+          persist-credentials: false
+
+      - name: Tests, kit check and test per adaptation
+        run: python3 -I scripts/ci.py check --kit .qaros/adaptation-kit --no-versions
 
       - name: Version bumps
         id: versions
-        run: python3 -I scripts/check_versions.py --github-output "$GITHUB_OUTPUT" | tee "$RUNNER_TEMP/versions.txt"
+        run: python3 -I scripts/check_versions.py --kit .qaros/adaptation-kit --github-output "$GITHUB_OUTPUT" | tee "$RUNNER_TEMP/versions.txt"
 
       - name: Decide
         id: decide
@@ -100,7 +110,7 @@ jobs:
           fi
           public_key="$RUNNER_TEMP/qaros-release.pub.pem"
           printf '%s\n' "$QAROS_RELEASE_PUBLIC_KEY" > "$public_key"
-          python3 -I scripts/qarapp.py key-id "$public_key"
+          python3 -I scripts/qarapp.py --kit .qaros/adaptation-kit key-id "$public_key"
           echo "PUBLIC_KEY=$public_key" >> "$GITHUB_ENV"
           echo "sign=true" >> "$GITHUB_OUTPUT"
 
@@ -133,9 +143,9 @@ jobs:
             signing=(--public-key "$PUBLIC_KEY" --key-vault "$KEY_VAULT" --key-name "$KEY_NAME")
             verify=(--public-key "$PUBLIC_KEY" --require-signature)
           fi
-          python3 -I scripts/build_packages.py --out out "${signing[@]}"
-          python3 -I scripts/make_index.py build --packages out --release "$TAG" --out out/webapps-index.json "${signing[@]}"
-          python3 -I scripts/make_index.py verify out/webapps-index.json --packages out "${verify[@]}"
+          python3 -I scripts/build_packages.py --out out --kit .qaros/adaptation-kit "${signing[@]}"
+          python3 -I scripts/make_index.py build --packages out --release "$TAG" --out out/webapps-index.json --kit .qaros/adaptation-kit "${signing[@]}"
+          python3 -I scripts/make_index.py verify out/webapps-index.json --packages out --kit .qaros/adaptation-kit "${verify[@]}"
 
       - name: Publish the release
         if: steps.decide.outputs.publish == 'true'
