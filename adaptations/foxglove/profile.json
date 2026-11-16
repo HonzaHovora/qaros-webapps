@@ -1,5 +1,6 @@
 {
   "AddressPattern": "https://app.foxglove.dev/*",
+  "Antialias": 4,
   "AppScale": 0.02,
   "ContinuousRendering": true,
   "DisplayName": "Foxglove",
@@ -12,7 +13,7 @@
   },
   "Panels": "panels",
   "RenderRate": 60,
-  "RenderScale": 0.5,
+  "RenderScale": 1.0,
   "Scripts": [
     {
       "Library": "threejs-capture@1",
@@ -43,6 +44,6 @@
   ],
   "ShareBrowserProfile": true,
   "StartAddress": "https://app.foxglove.dev/",
-  "Version": "0.2.0",
+  "Version": "0.2.1",
   "_sv": 3
 }
