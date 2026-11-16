@@ -65,6 +65,7 @@ A `profile.json` in the repository never holds `Files` or `Signature`: the build
   per folder under `adaptations`.
 - QAROS stops shipping its own copies of these adaptations and takes them from this repository's
   releases, so QAROS product versions and adaptation versions never compete.
+- Releases currently use date-based tags (`YYYY.MM.DD.N`), not the shared QAROS scheme in [ADR-0001: One versioning scheme for every QAROS repository](https://github.com/Quaternar/qaros/blob/main/docs/adr/0001-one-versioning-scheme.md). Moving to it needs the tools that pick the newest release changed first.
 
 ## Releases
 
